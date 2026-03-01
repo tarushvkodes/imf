@@ -311,6 +311,21 @@ function fitFontPx(ctx, text, family, weight, maxPx, minPx, maxWidth) {
   return minPx;
 }
 
+function compactCameraName(name) {
+  const s = String(name || '').trim();
+  if (!s) return s;
+  const strongModel = s.match(/\b([A-Z]?\d{3,5}[A-Z]?|D\d{3,4}|Z\d{1,2}|A\d{4}|R\d{1,2})\b/i);
+  if (strongModel) return strongModel[1].toUpperCase();
+  const parts = s.split(/\s+/);
+  return parts[parts.length - 1] || s;
+}
+
+function simplifyFocalText(s) {
+  const txt = String(s || '');
+  const m = txt.match(/^(.+?)\s*\([^)]*eq\)$/i);
+  return m ? m[1].trim() : txt;
+}
+
 async function frameImage(bitmap, exif, siteText, barRatio, fallbackDevice = 'unknown', sourceName = '') {
   const meta = summarizeExif(exif, fallbackDevice, sourceName);
   const w = bitmap.width, h = bitmap.height;
@@ -361,7 +376,11 @@ async function frameImage(bitmap, exif, siteText, barRatio, fallbackDevice = 'un
   ctx.fillStyle = '#000';
   ctx.textAlign = 'left';
   ctx.font = `${modelFont}px Sora`;
-  const leftTop = ellipsize(ctx, meta.camera, leftWidth);
+  let leftTop = meta.camera;
+  if (ctx.measureText(leftTop).width > leftWidth) {
+    const compact = compactCameraName(meta.camera);
+    leftTop = ctx.measureText(compact).width <= leftWidth ? compact : ellipsize(ctx, compact, leftWidth);
+  }
   ctx.fillText(leftTop, leftX, y0 + Math.floor(barH * 0.36));
 
   ctx.fillStyle = '#222';
@@ -369,12 +388,18 @@ async function frameImage(bitmap, exif, siteText, barRatio, fallbackDevice = 'un
   const leftBottom = ellipsize(ctx, `${meta.aperture}  ${meta.shutter}  ISO${meta.iso}`, leftWidth);
   ctx.fillText(leftBottom, leftX, y0 + Math.floor(barH * 0.67));
 
-  // Center focal block (never ellipsize focal; shrink font instead)
+  // Center focal block (if eq text won't fit, drop eq suffix)
   ctx.fillStyle = '#000';
   ctx.textAlign = 'center';
-  const focalPx = fitFontPx(ctx, meta.focal, 'Sora', '700', focalFont, Math.max(12, focalFont - 8), focalBoxW);
+  let focalText = String(meta.focal);
+  let focalPx = fitFontPx(ctx, focalText, 'Sora', '700', focalFont, Math.max(12, focalFont - 8), focalBoxW);
   ctx.font = `700 ${focalPx}px Sora`;
-  ctx.fillText(String(meta.focal), centerX, y0 + Math.floor(barH / 2));
+  if (ctx.measureText(focalText).width > focalBoxW) {
+    focalText = simplifyFocalText(focalText);
+    focalPx = fitFontPx(ctx, focalText, 'Sora', '700', focalFont, Math.max(12, focalFont - 8), focalBoxW);
+    ctx.font = `700 ${focalPx}px Sora`;
+  }
+  ctx.fillText(focalText, centerX, y0 + Math.floor(barH / 2));
 
   // Right block (site + datetime)
   ctx.textAlign = 'right';
