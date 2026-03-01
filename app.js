@@ -1,16 +1,28 @@
 import exifr from 'https://cdn.jsdelivr.net/npm/exifr/dist/lite.esm.js';
 import heic2any from 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/+esm';
 
-const logos = {
-  apple: await loadLogo('./assets/apple.svg'),
-  nikon: await loadLogo('./assets/nikon.svg'),
-  unknown: await loadLogo('./assets/camera.svg'),
+const BRAND_LOGO_PATHS = {
+  apple: './assets/apple.svg',
+  nikon: './assets/nikon.svg',
+  canon: './assets/canon.svg',
+  sony: './assets/sony.svg',
+  fujifilm: './assets/fujifilm.svg',
+  samsung: './assets/samsung.svg',
+  google: './assets/google.svg',
+  dji: './assets/dji.svg',
+  gopro: './assets/gopro.svg',
+  panasonic: './assets/panasonic.svg',
+  leica: './assets/leica.svg',
+  unknown: './assets/camera.svg',
 };
+
+const logos = await loadLogos();
 
 const $ = (id) => document.getElementById(id);
 const input = $('fileInput');
 const dropZone = $('dropZone');
 const statusEl = $('status');
+const progressBarEl = $('progressBar');
 const resultsEl = $('results');
 const processBtn = $('processBtn');
 const downloadAllBtn = $('downloadAllBtn');
@@ -34,10 +46,11 @@ downloadAllBtn.onclick = async () => {
 };
 
 function setFiles(newFiles) {
-  files = newFiles.filter(f => /image|heic|heif/i.test(f.type) || /\.(heic|heif|jpe?g|png)$/i.test(f.name));
+  files = newFiles.filter(f => /image|heic|heif/i.test(f.type) || /\.(heic|heif|jpe?g|png|webp)$/i.test(f.name));
   outputs = [];
   resultsEl.innerHTML = '';
   status(`${files.length} file(s) selected.`);
+  setProgress(0);
   processBtn.disabled = files.length === 0;
   downloadAllBtn.disabled = true;
 }
@@ -47,17 +60,22 @@ async function processAll() {
   const barRatio = Number($('barRatio').value) || 0.082;
   outputs = [];
   resultsEl.innerHTML = '';
+  setProgress(0);
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     status(`Processing ${i + 1}/${files.length}: ${file.name}`);
+
     const exif = await readExif(file);
     const decoded = await decodeImageFile(file);
     const framed = await frameImage(decoded, exif, siteText, barRatio);
     const blob = await canvasToBlob(framed, 'image/jpeg', 0.95);
+
     const meta = summarizeExif(exif);
     outputs.push({ name: file.name, blob, meta });
     renderCard(blob, file.name, meta);
+
+    setProgress(((i + 1) / files.length) * 100);
   }
 
   status(`Done. ${outputs.length} image(s) framed locally in your browser.`);
@@ -65,6 +83,7 @@ async function processAll() {
 }
 
 function status(text) { statusEl.textContent = text; }
+function setProgress(pct) { progressBarEl.style.width = `${Math.max(0, Math.min(100, pct))}%`; }
 
 async function readExif(file) {
   try {
@@ -73,6 +92,9 @@ async function readExif(file) {
       ifd0: true,
       exif: true,
       gps: true,
+      xmp: true,
+      icc: true,
+      iptc: true,
       translateKeys: true,
       reviveValues: true,
       mergeOutput: true,
@@ -88,45 +110,95 @@ async function decodeImageFile(file) {
 
   let srcBlob = file;
   if (isHeic) {
-    try {
-      const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.95 });
-      srcBlob = Array.isArray(converted) ? converted[0] : converted;
-    } catch (e) {
-      throw new Error('HEIC decode failed in browser.');
-    }
+    const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.95 });
+    srcBlob = Array.isArray(converted) ? converted[0] : converted;
   }
 
-  const bitmap = await createImageBitmap(srcBlob);
-  return bitmap;
+  return await createImageBitmap(srcBlob);
+}
+
+function firstDefined(obj, keys) {
+  for (const k of keys) {
+    const v = obj?.[k];
+    if (v !== undefined && v !== null && v !== '') return v;
+  }
+  return null;
 }
 
 function brandFromExif(exif) {
-  const make = String(exif?.Make || '').toLowerCase();
-  const model = String(exif?.Model || '').toLowerCase();
-  const s = `${make} ${model}`;
-  if (s.includes('nikon')) return 'nikon';
-  if (['apple','iphone','ipad','ipod'].some(k => s.includes(k))) return 'apple';
+  const make = String(firstDefined(exif, ['Make', 'make', 'LensMake']) || '').toLowerCase();
+  const model = String(firstDefined(exif, ['Model', 'model', 'LensModel']) || '').toLowerCase();
+  const software = String(firstDefined(exif, ['Software', 'HostComputer']) || '').toLowerCase();
+  const s = `${make} ${model} ${software}`;
+
+  const matchers = [
+    ['nikon', 'nikon'],
+    ['canon', 'canon'],
+    ['sony', 'sony'],
+    ['fujifilm', 'fujifilm'],
+    ['fuji', 'fujifilm'],
+    ['samsung', 'samsung'],
+    ['google', 'google'],
+    ['pixel', 'google'],
+    ['dji', 'dji'],
+    ['gopro', 'gopro'],
+    ['panasonic', 'panasonic'],
+    ['leica', 'leica'],
+    ['apple', 'apple'],
+    ['iphone', 'apple'],
+    ['ipad', 'apple'],
+    ['ipod', 'apple'],
+  ];
+
+  for (const [needle, brand] of matchers) {
+    if (s.includes(needle)) return brand;
+  }
   return 'unknown';
 }
 
+function normalizeDate(dt) {
+  if (!dt) return new Date().toISOString().slice(0, 19).replace('T', ' ');
+  if (dt instanceof Date) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${dt.getFullYear()}:${pad(dt.getMonth()+1)}:${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
+  }
+  return String(dt);
+}
+
 function summarizeExif(exif) {
-  const make = exif?.Make || '';
-  const model = exif?.Model || '';
+  const make = firstDefined(exif, ['Make', 'make']) || '';
+  const model = firstDefined(exif, ['Model', 'model']) || '';
   const brand = brandFromExif(exif);
-  const camera = (make || model) ? `${make} ${model}`.trim() : 'Unknown Camera';
+  const camera = (make || model)
+    ? `${make} ${model}`.trim()
+    : (brand !== 'unknown' ? brand.toUpperCase() : 'Unknown Camera');
+
+  const exposureTime = Number(firstDefined(exif, ['ExposureTime', 'exposureTime']) || 0);
+  const shutterApex = Number(firstDefined(exif, ['ShutterSpeedValue']) || 0);
+  const shutterSeconds = exposureTime > 0 ? exposureTime : (shutterApex ? Math.pow(2, -shutterApex) : 0);
+
+  const fNumber = Number(firstDefined(exif, ['FNumber']) || 0);
+  const apertureApex = Number(firstDefined(exif, ['ApertureValue']) || 0);
+  const aperture = fNumber > 0 ? fNumber : (apertureApex ? Math.pow(2, apertureApex / 2) : 0);
+
+  const iso = firstDefined(exif, ['ISOSpeedRatings', 'PhotographicSensitivity', 'ISO', 'iso']) || '?';
+  const focalRaw = Number(firstDefined(exif, ['FocalLength']) || 0);
+  const focal35 = Number(firstDefined(exif, ['FocalLengthIn35mmFormat', 'FocalLengthIn35mmFilm']) || 0);
+
+  const dt = normalizeDate(firstDefined(exif, ['DateTimeOriginal', 'CreateDate', 'DateTimeDigitized', 'DateTime', 'ModifyDate']));
+
   return {
     brand,
     camera,
-    aperture: exif?.FNumber ? `f/${Number(exif.FNumber).toFixed(1)}` : 'f/?',
-    shutter: exif?.ExposureTime ? formatShutter(exif.ExposureTime) : '?s',
-    iso: exif?.ISOSpeedRatings || exif?.PhotographicSensitivity || '?',
-    focal: exif?.FocalLength ? `${Math.round(Number(exif.FocalLength))}mm` : '?mm',
-    dt: exif?.DateTimeOriginal || exif?.DateTime || new Date().toISOString().slice(0, 19).replace('T',' '),
+    aperture: aperture > 0 ? `f/${aperture.toFixed(1)}` : 'f/?',
+    shutter: shutterSeconds > 0 ? formatShutter(shutterSeconds) : '?s',
+    iso,
+    focal: focalRaw > 0 ? `${Math.round(focalRaw)}mm` : (focal35 > 0 ? `${Math.round(focal35)}mm` : '?mm'),
+    dt,
   };
 }
 
-function formatShutter(v) {
-  const n = Number(v);
+function formatShutter(n) {
   if (!n || n <= 0) return '?s';
   if (n >= 1) return `${n.toFixed(1).replace('.0','')}s`;
   return `1/${Math.round(1 / n)}s`;
@@ -137,7 +209,8 @@ async function frameImage(bitmap, exif, siteText, barRatio) {
   const w = bitmap.width, h = bitmap.height;
   const barH = Math.max(88, Math.floor(h * barRatio));
   const c = document.createElement('canvas');
-  c.width = w; c.height = h + barH;
+  c.width = w;
+  c.height = h + barH;
   const ctx = c.getContext('2d');
 
   ctx.fillStyle = '#fff';
@@ -147,7 +220,10 @@ async function frameImage(bitmap, exif, siteText, barRatio) {
   const y0 = h;
   ctx.strokeStyle = '#e5e5e5';
   ctx.lineWidth = Math.max(1, Math.floor(barH * 0.02));
-  ctx.beginPath(); ctx.moveTo(0, y0); ctx.lineTo(w, y0); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, y0);
+  ctx.lineTo(w, y0);
+  ctx.stroke();
 
   const padX = Math.floor(w * 0.022);
   const logoH = Math.floor(barH * 0.56);
@@ -157,7 +233,7 @@ async function frameImage(bitmap, exif, siteText, barRatio) {
   const logoW = Math.max(1, Math.floor((logo.width / logo.height) * logoH));
   ctx.drawImage(logo, padX, logoY, logoW, logoH);
 
-  let x = padX + logoW + Math.floor(w * 0.018);
+  const x = padX + logoW + Math.floor(w * 0.018);
   ctx.fillStyle = '#000';
   ctx.textBaseline = 'middle';
 
@@ -212,6 +288,24 @@ function canvasToBlob(canvas, type, quality) {
 async function loadLogo(path) {
   const img = new Image();
   img.src = path;
-  await img.decode();
-  return img;
+  try {
+    await img.decode();
+    return img;
+  } catch {
+    return null;
+  }
+}
+
+async function loadLogos() {
+  const out = {};
+  for (const [brand, path] of Object.entries(BRAND_LOGO_PATHS)) {
+    out[brand] = await loadLogo(path);
+  }
+  if (!out.unknown) {
+    const fallback = new Image();
+    fallback.src = './assets/camera.svg';
+    await fallback.decode();
+    out.unknown = fallback;
+  }
+  return out;
 }

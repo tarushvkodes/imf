@@ -23,7 +23,6 @@
         <input id="fileInput" type="file" accept="image/*,.heic,.heif" multiple hidden />
         <button id="pickBtn" class="btn primary">Choose Photos</button>
         <p>or drag & drop files here</p>
-        <small>Tip: send via Telegram as <strong>file/document</strong> to preserve EXIF.</small>
       </div>
 
       <div class="field-grid">
@@ -43,7 +42,12 @@
       </div>
     </section>
 
-    <section class="panel status" id="status"></section>
+    <section class="panel status">
+      <div id="status">Idle.</div>
+      <div class="progress-wrap" aria-label="Processing progress">
+        <div id="progressBar" class="progress-bar"></div>
+      </div>
+    </section>
     <section class="grid" id="results"></section>
   </main>
 

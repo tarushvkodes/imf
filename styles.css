@@ -30,7 +30,9 @@ body {
 label { display: grid; gap: .35rem; color: var(--muted); font-size: .9rem; }
 input { background: #0f1423; border: 1px solid #2f3a5e; border-radius: 10px; color: var(--ink); padding: .6rem .7rem; }
 .actions { display: flex; gap: .65rem; margin-top: .9rem; flex-wrap: wrap; }
-.status { color: var(--muted); min-height: 46px; }
+.status { color: var(--muted); min-height: 46px; display: grid; gap: .65rem; }
+.progress-wrap { height: 10px; background: #0d1220; border: 1px solid #2b3555; border-radius: 999px; overflow: hidden; }
+.progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #59d7ff, #5b7cff); transition: width .25s ease; }
 .grid { margin-top: 1rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: .9rem; }
 .card { background: #0f1423; border: 1px solid #263053; border-radius: 12px; padding: .55rem; }
 .card img { width: 100%; border-radius: 8px; display: block; }
