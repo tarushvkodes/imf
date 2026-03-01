@@ -125,8 +125,18 @@ async function decodeImageFile(file) {
 
   let srcBlob = file;
   if (isHeic) {
-    const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.95 });
-    srcBlob = Array.isArray(converted) ? converted[0] : converted;
+    // 1) Try native browser decode first (works on some platforms/browsers)
+    try {
+      return await createImageBitmap(file);
+    } catch {
+      // 2) Fallback to heic2any conversion
+      try {
+        const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.95 });
+        srcBlob = Array.isArray(converted) ? converted[0] : converted;
+      } catch (e) {
+        throw new Error(`HEIC decode failed in this browser (${e?.message || 'unsupported format'}). Try Safari/iOS, Chrome latest, or export to JPG.`);
+      }
+    }
   } else if (isRaw) {
     // Browser RAW decode is limited. Try to use embedded preview thumbnail.
     const thumb = await exifr.thumbnail(file).catch(() => null);
