@@ -193,17 +193,20 @@ function brandFromExif(exif) {
 }
 
 function normalizeDate(dt) {
-  if (!dt) return new Date().toISOString().slice(0, 19).replace('T', ' ');
+  if (!dt) return '';
   if (dt instanceof Date) {
     const pad = (n) => String(n).padStart(2, '0');
-    return `${dt.getFullYear()}:${pad(dt.getMonth()+1)}:${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
+    return `${dt.getFullYear()}:${pad(dt.getMonth()+1)}:${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
   }
-  return String(dt);
+  const s = String(dt).replace('T', ' ');
+  // Keep footer compact to avoid overlap
+  return s.length > 16 ? s.slice(0, 16) : s;
 }
 
 function summarizeExif(exif) {
   const make = firstDefined(exif, ['Make', 'make']) || '';
   const model = firstDefined(exif, ['Model', 'model']) || '';
+  const hasExifData = Object.keys(exif || {}).length > 0;
   const brand = brandFromExif(exif);
   const camera = (make || model)
     ? `${make} ${model}`.trim()
@@ -246,10 +249,11 @@ function summarizeExif(exif) {
   return {
     brand,
     camera,
+    hasExifData,
     aperture: aperture > 0 ? `f/${aperture.toFixed(1)}` : 'f/?',
     shutter: shutterSeconds > 0 ? formatShutter(shutterSeconds) : '?s',
-    iso,
-    focal,
+    iso: hasExifData ? iso : '?',
+    focal: hasExifData ? focal : '?mm',
     dt,
   };
 }
@@ -308,8 +312,10 @@ async function frameImage(bitmap, exif, siteText, barRatio) {
   ctx.textAlign = 'right';
   ctx.font = `${Math.max(14, Math.floor(barH * 0.22))}px Sora`;
   ctx.fillText(siteText, w - padX, y0 + Math.floor(barH * 0.40));
-  ctx.fillStyle = '#333';
-  ctx.fillText(String(meta.dt), w - padX, y0 + Math.floor(barH * 0.72));
+  if (meta.dt) {
+    ctx.fillStyle = '#333';
+    ctx.fillText(String(meta.dt), w - padX, y0 + Math.floor(barH * 0.72));
+  }
 
   return c;
 }
@@ -324,6 +330,7 @@ function renderCard(blob, filename, meta) {
       <div class="name">${filename}</div>
       <div>${meta.camera}</div>
       <div>${meta.aperture} · ${meta.shutter} · ISO${meta.iso} · ${meta.focal}</div>
+      ${meta.hasExifData ? '' : '<div style="color:#ffbf7a">No EXIF found in source file</div>'}
     </div>`;
   resultsEl.appendChild(card);
 }
