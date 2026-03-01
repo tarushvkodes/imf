@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IMF — Image Metadata Framer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="noise"></div>
+  <main class="shell">
+    <header class="hero">
+      <p class="eyebrow">LOCAL · PRIVATE · NO SERVER UPLOAD</p>
+      <h1>IMF <span>Image Metadata Framer</span></h1>
+      <p class="sub">Drop camera photos, auto-read EXIF, stamp a clean metadata footer, and download instantly — all in your browser.</p>
+    </header>
+
+    <section class="panel controls">
+      <div class="drop" id="dropZone">
+        <input id="fileInput" type="file" accept="image/*,.heic,.heif" multiple hidden />
+        <button id="pickBtn" class="btn primary">Choose Photos</button>
+        <p>or drag & drop files here</p>
+        <small>Tip: send via Telegram as <strong>file/document</strong> to preserve EXIF.</small>
+      </div>
+
+      <div class="field-grid">
+        <label>
+          Site text
+          <input id="siteText" value="tarushv.com" />
+        </label>
+        <label>
+          Bar height ratio
+          <input id="barRatio" type="number" min="0.05" max="0.16" step="0.005" value="0.082" />
+        </label>
+      </div>
+
+      <div class="actions">
+        <button id="processBtn" class="btn" disabled>Process Selected</button>
+        <button id="downloadAllBtn" class="btn" disabled>Download All</button>
+      </div>
+    </section>
+
+    <section class="panel status" id="status"></section>
+    <section class="grid" id="results"></section>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

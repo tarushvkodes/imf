@@ -1,0 +1,38 @@
+:root {
+  --bg: #0d0f14;
+  --panel: #141824;
+  --ink: #ecf0ff;
+  --muted: #9fa8c2;
+  --line: #2a3146;
+  --accent: #8be9fd;
+  --accent2: #ffd166;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  color: var(--ink);
+  background: radial-gradient(circle at 10% 10%, #1a2240 0%, #0d0f14 55%), #0d0f14;
+  font-family: "Sora", sans-serif;
+}
+.noise { position: fixed; inset: 0; pointer-events: none; opacity: .07; background-image: radial-gradient(#fff 0.5px, transparent 0.5px); background-size: 3px 3px; }
+.shell { max-width: 1100px; margin: 0 auto; padding: 2rem 1.1rem 3rem; position: relative; z-index: 1; }
+.hero h1 { margin: .2rem 0; font-size: clamp(2rem, 5vw, 4rem); font-family: "DM Serif Display", serif; font-weight: 400; }
+.hero h1 span { font-family: "Sora", sans-serif; font-size: .35em; color: var(--accent); margin-left: .5rem; }
+.eyebrow { color: var(--accent2); letter-spacing: .18em; font-size: .72rem; }
+.sub { color: var(--muted); max-width: 70ch; }
+.panel { background: linear-gradient(160deg, rgba(255,255,255,.03), rgba(255,255,255,.01)); border: 1px solid var(--line); border-radius: 18px; padding: 1rem; margin-top: 1rem; box-shadow: 0 8px 25px rgba(0,0,0,.25); }
+.drop { border: 1px dashed #4c5778; border-radius: 14px; padding: 1rem; text-align: center; }
+.drop.drag { border-color: var(--accent); background: rgba(139,233,253,.08); }
+.btn { background: #202946; color: white; border: 1px solid #3d4d7b; border-radius: 10px; padding: .65rem 1rem; cursor: pointer; }
+.btn.primary { background: linear-gradient(90deg, #2f4ad9, #3f65ff); border: none; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.field-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: .8rem; margin-top: .8rem; }
+label { display: grid; gap: .35rem; color: var(--muted); font-size: .9rem; }
+input { background: #0f1423; border: 1px solid #2f3a5e; border-radius: 10px; color: var(--ink); padding: .6rem .7rem; }
+.actions { display: flex; gap: .65rem; margin-top: .9rem; flex-wrap: wrap; }
+.status { color: var(--muted); min-height: 46px; }
+.grid { margin-top: 1rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: .9rem; }
+.card { background: #0f1423; border: 1px solid #263053; border-radius: 12px; padding: .55rem; }
+.card img { width: 100%; border-radius: 8px; display: block; }
+.meta { margin-top: .45rem; font-size: .78rem; color: #aeb7d0; display: grid; gap: .18rem; }
+.name { color: white; font-size: .83rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
