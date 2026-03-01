@@ -77,10 +77,10 @@ async function processAll() {
       }
 
       const cleaned = stripExistingFooter(decoded);
-      const framed = await frameImage(cleaned, exif, siteText, barRatio, fallbackDevice);
+      const framed = await frameImage(cleaned, exif, siteText, barRatio, fallbackDevice, file.name);
       const blob = await canvasToBlob(framed, 'image/jpeg', 0.95);
 
-      const meta = summarizeExif(exif, fallbackDevice);
+      const meta = summarizeExif(exif, fallbackDevice, file.name);
       outputs.push({ name: file.name, blob, meta });
       renderCard(blob, file.name, meta);
     } catch (err) {
@@ -204,7 +204,7 @@ function normalizeDate(dt) {
   return s.length > 16 ? s.slice(0, 16) : s;
 }
 
-function summarizeExif(exif, fallbackDevice = 'unknown') {
+function summarizeExif(exif, fallbackDevice = 'unknown', sourceName = '') {
   const make = firstDefined(exif, ['Make', 'make']) || '';
   const model = firstDefined(exif, ['Model', 'model']) || '';
   const hasExifData = Object.keys(exif || {}).length > 0;
@@ -213,7 +213,9 @@ function summarizeExif(exif, fallbackDevice = 'unknown') {
   if (make || model) {
     camera = `${make} ${model}`.trim();
   } else {
-    if (fallbackDevice === 'apple_ipad') {
+    const looksLikeAppleName = /^IMG_\d+/i.test(String(sourceName || ''));
+
+    if (fallbackDevice === 'apple_ipad' || (fallbackDevice === 'unknown' && looksLikeAppleName)) {
       brand = 'apple';
       camera = 'Apple iPad';
     } else if (fallbackDevice === 'apple_iphone') {
@@ -295,8 +297,8 @@ function ellipsize(ctx, text, maxWidth) {
   return s.slice(0, lo) + dots;
 }
 
-async function frameImage(bitmap, exif, siteText, barRatio, fallbackDevice = 'unknown') {
-  const meta = summarizeExif(exif, fallbackDevice);
+async function frameImage(bitmap, exif, siteText, barRatio, fallbackDevice = 'unknown', sourceName = '') {
+  const meta = summarizeExif(exif, fallbackDevice, sourceName);
   const w = bitmap.width, h = bitmap.height;
   const barH = Math.max(88, Math.floor(h * barRatio));
   const c = document.createElement('canvas');
