@@ -1,6 +1,8 @@
 import exifr from 'https://cdn.jsdelivr.net/npm/exifr/dist/full.esm.js';
 import heic2any from 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/+esm';
 
+const APP_VERSION = 'v1.0.1';
+
 const BRAND_LOGO_PATHS = {
   apple: './assets/apple.svg',
   nikon: './assets/nikon.svg',
@@ -26,6 +28,8 @@ const progressBarEl = $('progressBar');
 const resultsEl = $('results');
 const processBtn = $('processBtn');
 const downloadAllBtn = $('downloadAllBtn');
+const versionBadge = $('versionBadge');
+if (versionBadge) versionBadge.textContent = APP_VERSION;
 
 let files = [];
 let outputs = [];

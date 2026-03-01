@@ -20,6 +20,7 @@ body {
 .hero h1 span { font-family: "Sora", sans-serif; font-size: .35em; color: var(--accent); margin-left: .5rem; }
 .eyebrow { color: var(--accent2); letter-spacing: .18em; font-size: .72rem; }
 .sub { color: var(--muted); max-width: 70ch; }
+.version { display: inline-block; margin-top: .45rem; font-size: .78rem; color: #b8c6ea; border: 1px solid #2f3a5f; background: #10162a; padding: .25rem .55rem; border-radius: 999px; }
 .panel { background: linear-gradient(160deg, rgba(255,255,255,.03), rgba(255,255,255,.01)); border: 1px solid var(--line); border-radius: 18px; padding: 1rem; margin-top: 1rem; box-shadow: 0 8px 25px rgba(0,0,0,.25); }
 .drop { border: 1px dashed #4c5778; border-radius: 14px; padding: 1rem; text-align: center; }
 .drop.drag { border-color: var(--accent); background: rgba(139,233,253,.08); }
