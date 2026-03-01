@@ -158,6 +158,37 @@ function firstDefined(obj, keys) {
   return null;
 }
 
+function deepFindByKey(obj, wantedKeys, maxDepth = 5) {
+  const wanted = new Set(wantedKeys.map(k => String(k).toLowerCase()));
+  const seen = new Set();
+
+  function walk(node, depth) {
+    if (!node || depth > maxDepth) return null;
+    if (typeof node !== 'object') return null;
+    if (seen.has(node)) return null;
+    seen.add(node);
+
+    for (const [k, v] of Object.entries(node)) {
+      if (wanted.has(String(k).toLowerCase()) && v !== undefined && v !== null && v !== '') {
+        return v;
+      }
+    }
+    for (const v of Object.values(node)) {
+      const found = walk(v, depth + 1);
+      if (found !== null) return found;
+    }
+    return null;
+  }
+
+  return walk(obj, 0);
+}
+
+function exifValue(exif, keys) {
+  const top = firstDefined(exif, keys);
+  if (top !== null) return top;
+  return deepFindByKey(exif, keys);
+}
+
 function numFrom(v) {
   if (v === null || v === undefined || v === '') return 0;
   if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
@@ -173,9 +204,9 @@ function numFrom(v) {
 }
 
 function brandFromExif(exif) {
-  const make = String(firstDefined(exif, ['Make', 'make', 'LensMake']) || '').toLowerCase();
-  const model = String(firstDefined(exif, ['Model', 'model', 'LensModel']) || '').toLowerCase();
-  const software = String(firstDefined(exif, ['Software', 'HostComputer']) || '').toLowerCase();
+  const make = String(exifValue(exif, ['Make', 'make', 'LensMake']) || '').toLowerCase();
+  const model = String(exifValue(exif, ['Model', 'model', 'LensModel']) || '').toLowerCase();
+  const software = String(exifValue(exif, ['Software', 'HostComputer']) || '').toLowerCase();
   const s = `${make} ${model} ${software}`;
 
   const matchers = [
@@ -215,8 +246,8 @@ function normalizeDate(dt) {
 }
 
 function summarizeExif(exif, fallbackDevice = 'unknown', sourceName = '') {
-  const make = firstDefined(exif, ['Make', 'make']) || '';
-  const model = firstDefined(exif, ['Model', 'model']) || '';
+  const make = exifValue(exif, ['Make', 'make']) || '';
+  const model = exifValue(exif, ['Model', 'model']) || '';
   const hasExifData = Object.keys(exif || {}).length > 0;
   let brand = brandFromExif(exif);
   let camera;
@@ -237,15 +268,15 @@ function summarizeExif(exif, fallbackDevice = 'unknown', sourceName = '') {
     }
   }
 
-  const exposureTime = numFrom(firstDefined(exif, ['ExposureTime', 'exposureTime']));
-  const shutterApex = numFrom(firstDefined(exif, ['ShutterSpeedValue', 'ShutterSpeed']));
+  const exposureTime = numFrom(exifValue(exif, ['ExposureTime', 'exposureTime']));
+  const shutterApex = numFrom(exifValue(exif, ['ShutterSpeedValue', 'ShutterSpeed']));
   const shutterSeconds = exposureTime > 0 ? exposureTime : (shutterApex ? Math.pow(2, -shutterApex) : 0);
 
-  const fNumber = numFrom(firstDefined(exif, ['FNumber', 'fNumber']));
-  const apertureApex = numFrom(firstDefined(exif, ['ApertureValue', 'MaxApertureValue']));
+  const fNumber = numFrom(exifValue(exif, ['FNumber', 'fNumber']));
+  const apertureApex = numFrom(exifValue(exif, ['ApertureValue', 'MaxApertureValue']));
   const aperture = fNumber > 0 ? fNumber : (apertureApex ? Math.pow(2, apertureApex / 2) : 0);
 
-  const isoRaw = firstDefined(exif, [
+  const isoRaw = exifValue(exif, [
     'ISOSpeedRatings',
     'PhotographicSensitivity',
     'ISO',
@@ -257,8 +288,8 @@ function summarizeExif(exif, fallbackDevice = 'unknown', sourceName = '') {
   const isoNum = numFrom(isoRaw);
   const iso = isoNum > 0 ? Math.round(isoNum) : (isoRaw || '?');
 
-  const focalRaw = numFrom(firstDefined(exif, ['FocalLength', 'focalLength']));
-  const focal35 = numFrom(firstDefined(exif, ['FocalLengthIn35mmFormat', 'FocalLengthIn35mmFilm']));
+  const focalRaw = numFrom(exifValue(exif, ['FocalLength', 'focalLength']));
+  const focal35 = numFrom(exifValue(exif, ['FocalLengthIn35mmFormat', 'FocalLengthIn35mmFilm']));
 
   const isAppleDevice = /apple|iphone|ipad|ipod/i.test(`${make} ${model}`);
 
@@ -275,7 +306,7 @@ function summarizeExif(exif, fallbackDevice = 'unknown', sourceName = '') {
     focal = `${Math.round(focalRaw)}mm (${Math.round(focal35)}mm eq)`;
   }
 
-  const dt = normalizeDate(firstDefined(exif, ['DateTimeOriginal', 'CreateDate', 'DateTimeDigitized', 'DateTime', 'ModifyDate']));
+  const dt = normalizeDate(exifValue(exif, ['DateTimeOriginal', 'CreateDate', 'DateTimeDigitized', 'DateTime', 'ModifyDate']));
 
   return {
     brand,
