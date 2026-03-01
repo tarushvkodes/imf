@@ -58,6 +58,7 @@ function setFiles(newFiles) {
 async function processAll() {
   const siteText = $('siteText').value.trim() || 'tarushv.com';
   const barRatio = Number($('barRatio').value) || 0.082;
+  const fallbackDevice = $('fallbackDevice')?.value || 'unknown';
   outputs = [];
   resultsEl.innerHTML = '';
   setProgress(0);
@@ -76,10 +77,10 @@ async function processAll() {
       }
 
       const cleaned = stripExistingFooter(decoded);
-      const framed = await frameImage(cleaned, exif, siteText, barRatio);
+      const framed = await frameImage(cleaned, exif, siteText, barRatio, fallbackDevice);
       const blob = await canvasToBlob(framed, 'image/jpeg', 0.95);
 
-      const meta = summarizeExif(exif);
+      const meta = summarizeExif(exif, fallbackDevice);
       outputs.push({ name: file.name, blob, meta });
       renderCard(blob, file.name, meta);
     } catch (err) {
@@ -203,14 +204,28 @@ function normalizeDate(dt) {
   return s.length > 16 ? s.slice(0, 16) : s;
 }
 
-function summarizeExif(exif) {
+function summarizeExif(exif, fallbackDevice = 'unknown') {
   const make = firstDefined(exif, ['Make', 'make']) || '';
   const model = firstDefined(exif, ['Model', 'model']) || '';
   const hasExifData = Object.keys(exif || {}).length > 0;
-  const brand = brandFromExif(exif);
-  const camera = (make || model)
-    ? `${make} ${model}`.trim()
-    : (brand !== 'unknown' ? brand.toUpperCase() : 'Unknown Camera');
+  let brand = brandFromExif(exif);
+  let camera;
+  if (make || model) {
+    camera = `${make} ${model}`.trim();
+  } else {
+    if (fallbackDevice === 'apple_ipad') {
+      brand = 'apple';
+      camera = 'Apple iPad';
+    } else if (fallbackDevice === 'apple_iphone') {
+      brand = 'apple';
+      camera = 'Apple iPhone';
+    } else if (fallbackDevice === 'nikon') {
+      brand = 'nikon';
+      camera = 'Nikon Camera';
+    } else {
+      camera = (brand !== 'unknown' ? brand.toUpperCase() : 'Unknown Camera');
+    }
+  }
 
   const exposureTime = numFrom(firstDefined(exif, ['ExposureTime', 'exposureTime']));
   const shutterApex = numFrom(firstDefined(exif, ['ShutterSpeedValue', 'ShutterSpeed']));
@@ -280,8 +295,8 @@ function ellipsize(ctx, text, maxWidth) {
   return s.slice(0, lo) + dots;
 }
 
-async function frameImage(bitmap, exif, siteText, barRatio) {
-  const meta = summarizeExif(exif);
+async function frameImage(bitmap, exif, siteText, barRatio, fallbackDevice = 'unknown') {
+  const meta = summarizeExif(exif, fallbackDevice);
   const w = bitmap.width, h = bitmap.height;
   const barH = Math.max(88, Math.floor(h * barRatio));
   const c = document.createElement('canvas');

@@ -34,6 +34,15 @@
           Bar height ratio
           <input id="barRatio" type="number" min="0.05" max="0.16" step="0.005" value="0.082" />
         </label>
+        <label>
+          If EXIF missing
+          <select id="fallbackDevice">
+            <option value="unknown" selected>Keep Unknown Camera</option>
+            <option value="apple_iphone">Use Apple iPhone</option>
+            <option value="apple_ipad">Use Apple iPad</option>
+            <option value="nikon">Use Nikon Camera</option>
+          </select>
+        </label>
       </div>
 
       <div class="actions">
@@ -51,6 +60,6 @@
     <section class="grid" id="results"></section>
   </main>
 
-  <script type="module" src="./app.js?v=2"></script>
+  <script type="module" src="./app.js?v=3"></script>
 </body>
 </html>

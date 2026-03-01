@@ -28,7 +28,7 @@ body {
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .field-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: .8rem; margin-top: .8rem; }
 label { display: grid; gap: .35rem; color: var(--muted); font-size: .9rem; }
-input { background: #0f1423; border: 1px solid #2f3a5e; border-radius: 10px; color: var(--ink); padding: .6rem .7rem; }
+input, select { background: #0f1423; border: 1px solid #2f3a5e; border-radius: 10px; color: var(--ink); padding: .6rem .7rem; }
 .actions { display: flex; gap: .65rem; margin-top: .9rem; flex-wrap: wrap; }
 .status { color: var(--muted); min-height: 46px; display: grid; gap: .65rem; }
 .progress-wrap { height: 10px; background: #0d1220; border: 1px solid #2b3555; border-radius: 999px; overflow: hidden; }
