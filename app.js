@@ -1,8 +1,7 @@
 import exifr from 'https://cdn.jsdelivr.net/npm/exifr/dist/full.esm.js';
-import ExifReader from 'https://cdn.jsdelivr.net/npm/exifreader@4.23.8/+esm';
 import heic2any from 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/+esm';
 
-const APP_VERSION = 'v1.0.2';
+const APP_VERSION = 'v1.0.3';
 
 const BRAND_LOGO_PATHS = {
   apple: './assets/apple.svg',
@@ -123,9 +122,12 @@ async function readExif(file) {
     parsed = {};
   }
 
-  // Fallback parser for HEIC variants where exifr returns empty on some browsers
+  // Fallback parser for HEIC variants where exifr returns empty on some browsers.
+  // Dynamic import so app still boots even if fallback parser CDN is blocked.
   if (!parsed || Object.keys(parsed).length === 0) {
     try {
+      const mod = await import('https://cdn.jsdelivr.net/npm/exifreader@4.23.8/+esm');
+      const ExifReader = mod?.default ?? mod;
       const tags = await ExifReader.load(await file.arrayBuffer());
       const get = (k) => tags?.[k]?.value ?? null;
       parsed = {
@@ -147,7 +149,6 @@ async function readExif(file) {
         DateTimeDigitized: get('DateTimeDigitized'),
         DateTime: get('DateTime'),
       };
-      // remove nulls
       parsed = Object.fromEntries(Object.entries(parsed).filter(([, v]) => v !== null && v !== undefined && v !== ''));
     } catch {
       // keep empty
