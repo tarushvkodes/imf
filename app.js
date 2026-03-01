@@ -1,4 +1,4 @@
-import exifr from 'https://cdn.jsdelivr.net/npm/exifr/dist/lite.esm.js';
+import exifr from 'https://cdn.jsdelivr.net/npm/exifr/dist/full.esm.js';
 import heic2any from 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/+esm';
 
 const BRAND_LOGO_PATHS = {
@@ -213,9 +213,7 @@ function summarizeExif(exif, fallbackDevice = 'unknown', sourceName = '') {
   if (make || model) {
     camera = `${make} ${model}`.trim();
   } else {
-    const looksLikeAppleName = /^IMG_\d+/i.test(String(sourceName || ''));
-
-    if (fallbackDevice === 'apple_ipad' || (fallbackDevice === 'unknown' && looksLikeAppleName)) {
+    if (fallbackDevice === 'apple_ipad') {
       brand = 'apple';
       camera = 'Apple iPad';
     } else if (fallbackDevice === 'apple_iphone') {
