@@ -250,13 +250,19 @@ function summarizeExif(exif, fallbackDevice = 'unknown', sourceName = '') {
   const focalRaw = numFrom(firstDefined(exif, ['FocalLength', 'focalLength']));
   const focal35 = numFrom(firstDefined(exif, ['FocalLengthIn35mmFormat', 'FocalLengthIn35mmFilm']));
 
+  const isAppleDevice = /apple|iphone|ipad|ipod/i.test(`${make} ${model}`);
+
   let focal = '?mm';
-  if (focalRaw > 0 && focal35 > 0 && Math.round(focalRaw) !== Math.round(focal35)) {
-    focal = `${Math.round(focalRaw)}mm (${Math.round(focal35)}mm eq)`;
+  // Match iOS Photos behavior: prefer 35mm-equivalent field when present.
+  if (focal35 > 0) {
+    focal = `${Math.round(focal35)}mm`;
   } else if (focalRaw > 0) {
     focal = `${Math.round(focalRaw)}mm`;
-  } else if (focal35 > 0) {
-    focal = `${Math.round(focal35)}mm`;
+  }
+
+  // Optional: if non-Apple and both are available, show both for transparency.
+  if (!isAppleDevice && focalRaw > 0 && focal35 > 0 && Math.round(focalRaw) !== Math.round(focal35)) {
+    focal = `${Math.round(focalRaw)}mm (${Math.round(focal35)}mm eq)`;
   }
 
   const dt = normalizeDate(firstDefined(exif, ['DateTimeOriginal', 'CreateDate', 'DateTimeDigitized', 'DateTime', 'ModifyDate']));
