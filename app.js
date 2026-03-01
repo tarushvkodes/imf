@@ -46,7 +46,7 @@ downloadAllBtn.onclick = async () => {
 };
 
 function setFiles(newFiles) {
-  files = newFiles.filter(f => /image|heic|heif/i.test(f.type) || /\.(heic|heif|jpe?g|png|webp)$/i.test(f.name));
+  files = newFiles.filter(f => /image|heic|heif|raw/i.test(f.type) || /\.(heic|heif|jpe?g|png|webp|nef|cr2|cr3|arw|dng)$/i.test(f.name));
   outputs = [];
   resultsEl.innerHTML = '';
   status(`${files.length} file(s) selected.`);
@@ -62,23 +62,30 @@ async function processAll() {
   resultsEl.innerHTML = '';
   setProgress(0);
 
+  let failed = 0;
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     status(`Processing ${i + 1}/${files.length}: ${file.name}`);
 
-    const exif = await readExif(file);
-    const decoded = await decodeImageFile(file);
-    const framed = await frameImage(decoded, exif, siteText, barRatio);
-    const blob = await canvasToBlob(framed, 'image/jpeg', 0.95);
+    try {
+      const exif = await readExif(file);
+      const decoded = await decodeImageFile(file);
+      const framed = await frameImage(decoded, exif, siteText, barRatio);
+      const blob = await canvasToBlob(framed, 'image/jpeg', 0.95);
 
-    const meta = summarizeExif(exif);
-    outputs.push({ name: file.name, blob, meta });
-    renderCard(blob, file.name, meta);
+      const meta = summarizeExif(exif);
+      outputs.push({ name: file.name, blob, meta });
+      renderCard(blob, file.name, meta);
+    } catch (err) {
+      failed += 1;
+      console.warn('Failed to process', file.name, err);
+      renderErrorCard(file.name, err?.message || 'Processing failed');
+    }
 
     setProgress(((i + 1) / files.length) * 100);
   }
 
-  status(`Done. ${outputs.length} image(s) framed locally in your browser.`);
+  status(`Done. ${outputs.length} image(s) framed locally in your browser.${failed ? ` ${failed} failed.` : ''}`);
   downloadAllBtn.disabled = outputs.length === 0;
 }
 
@@ -107,11 +114,20 @@ async function readExif(file) {
 async function decodeImageFile(file) {
   const ext = file.name.toLowerCase();
   const isHeic = ext.endsWith('.heic') || ext.endsWith('.heif') || /heic|heif/i.test(file.type);
+  const isRaw = /\.(nef|cr2|cr3|arw|dng)$/i.test(ext);
 
   let srcBlob = file;
   if (isHeic) {
     const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.95 });
     srcBlob = Array.isArray(converted) ? converted[0] : converted;
+  } else if (isRaw) {
+    // Browser RAW decode is limited. Try to use embedded preview thumbnail.
+    const thumb = await exifr.thumbnail(file).catch(() => null);
+    if (thumb) {
+      srcBlob = thumb;
+    } else {
+      throw new Error('RAW preview not found. For full-quality RAW framing, export JPG/HEIC first.');
+    }
   }
 
   return await createImageBitmap(srcBlob);
@@ -123,6 +139,20 @@ function firstDefined(obj, keys) {
     if (v !== undefined && v !== null && v !== '') return v;
   }
   return null;
+}
+
+function numFrom(v) {
+  if (v === null || v === undefined || v === '') return 0;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+  if (Array.isArray(v) && v.length) return numFrom(v[0]);
+  if (typeof v === 'object') {
+    if ('numerator' in v && 'denominator' in v) {
+      const d = Number(v.denominator) || 1;
+      return Number(v.numerator) / d;
+    }
+  }
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
 }
 
 function brandFromExif(exif) {
@@ -173,17 +203,28 @@ function summarizeExif(exif) {
     ? `${make} ${model}`.trim()
     : (brand !== 'unknown' ? brand.toUpperCase() : 'Unknown Camera');
 
-  const exposureTime = Number(firstDefined(exif, ['ExposureTime', 'exposureTime']) || 0);
-  const shutterApex = Number(firstDefined(exif, ['ShutterSpeedValue']) || 0);
+  const exposureTime = numFrom(firstDefined(exif, ['ExposureTime', 'exposureTime']));
+  const shutterApex = numFrom(firstDefined(exif, ['ShutterSpeedValue', 'ShutterSpeed']));
   const shutterSeconds = exposureTime > 0 ? exposureTime : (shutterApex ? Math.pow(2, -shutterApex) : 0);
 
-  const fNumber = Number(firstDefined(exif, ['FNumber']) || 0);
-  const apertureApex = Number(firstDefined(exif, ['ApertureValue']) || 0);
+  const fNumber = numFrom(firstDefined(exif, ['FNumber', 'fNumber']));
+  const apertureApex = numFrom(firstDefined(exif, ['ApertureValue', 'MaxApertureValue']));
   const aperture = fNumber > 0 ? fNumber : (apertureApex ? Math.pow(2, apertureApex / 2) : 0);
 
-  const iso = firstDefined(exif, ['ISOSpeedRatings', 'PhotographicSensitivity', 'ISO', 'iso']) || '?';
-  const focalRaw = Number(firstDefined(exif, ['FocalLength']) || 0);
-  const focal35 = Number(firstDefined(exif, ['FocalLengthIn35mmFormat', 'FocalLengthIn35mmFilm']) || 0);
+  const isoRaw = firstDefined(exif, [
+    'ISOSpeedRatings',
+    'PhotographicSensitivity',
+    'ISO',
+    'ISOValue',
+    'RecommendedExposureIndex',
+    'StandardOutputSensitivity',
+    'iso',
+  ]);
+  const isoNum = numFrom(isoRaw);
+  const iso = isoNum > 0 ? Math.round(isoNum) : (isoRaw || '?');
+
+  const focalRaw = numFrom(firstDefined(exif, ['FocalLength', 'focalLength']));
+  const focal35 = numFrom(firstDefined(exif, ['FocalLengthIn35mmFormat', 'FocalLengthIn35mmFilm']));
 
   const dt = normalizeDate(firstDefined(exif, ['DateTimeOriginal', 'CreateDate', 'DateTimeDigitized', 'DateTime', 'ModifyDate']));
 
@@ -247,7 +288,7 @@ async function frameImage(bitmap, exif, siteText, barRatio) {
   ctx.fillStyle = '#000';
   ctx.textAlign = 'center';
   ctx.font = `700 ${Math.max(16, Math.floor(barH * 0.33))}px Sora`;
-  ctx.fillText(meta.focal, Math.floor(w * 0.62), y0 + Math.floor(barH / 2));
+  ctx.fillText(meta.focal, Math.floor(w * 0.50), y0 + Math.floor(barH / 2));
 
   ctx.textAlign = 'right';
   ctx.font = `${Math.max(14, Math.floor(barH * 0.22))}px Sora`;
@@ -268,6 +309,18 @@ function renderCard(blob, filename, meta) {
       <div class="name">${filename}</div>
       <div>${meta.camera}</div>
       <div>${meta.aperture} · ${meta.shutter} · ISO${meta.iso} · ${meta.focal}</div>
+    </div>`;
+  resultsEl.appendChild(card);
+}
+
+function renderErrorCard(filename, message) {
+  const card = document.createElement('article');
+  card.className = 'card';
+  card.innerHTML = `
+    <div class="meta">
+      <div class="name">${filename}</div>
+      <div style="color:#ff9b9b">Could not process</div>
+      <div>${message}</div>
     </div>`;
   resultsEl.appendChild(card);
 }
