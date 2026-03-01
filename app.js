@@ -1,7 +1,8 @@
 import exifr from 'https://cdn.jsdelivr.net/npm/exifr/dist/full.esm.js';
+import ExifReader from 'https://cdn.jsdelivr.net/npm/exifreader@4.23.8/+esm';
 import heic2any from 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/+esm';
 
-const APP_VERSION = 'v1.0.1';
+const APP_VERSION = 'v1.0.2';
 
 const BRAND_LOGO_PATHS = {
   apple: './assets/apple.svg',
@@ -104,8 +105,9 @@ function status(text) { statusEl.textContent = text; }
 function setProgress(pct) { progressBarEl.style.width = `${Math.max(0, Math.min(100, pct))}%`; }
 
 async function readExif(file) {
+  let parsed = {};
   try {
-    return await exifr.parse(file, {
+    parsed = await exifr.parse(file, {
       tiff: true,
       ifd0: true,
       exif: true,
@@ -118,8 +120,41 @@ async function readExif(file) {
       mergeOutput: true,
     }) || {};
   } catch {
-    return {};
+    parsed = {};
   }
+
+  // Fallback parser for HEIC variants where exifr returns empty on some browsers
+  if (!parsed || Object.keys(parsed).length === 0) {
+    try {
+      const tags = await ExifReader.load(await file.arrayBuffer());
+      const get = (k) => tags?.[k]?.value ?? null;
+      parsed = {
+        Make: get('Make'),
+        Model: get('Model'),
+        LensMake: get('LensMake'),
+        LensModel: get('LensModel'),
+        Software: get('Software'),
+        FNumber: get('FNumber'),
+        ExposureTime: get('ExposureTime'),
+        ShutterSpeedValue: get('ShutterSpeedValue'),
+        ApertureValue: get('ApertureValue'),
+        ISOSpeedRatings: get('ISOSpeedRatings') ?? get('ISO') ?? get('PhotographicSensitivity'),
+        PhotographicSensitivity: get('PhotographicSensitivity'),
+        ISO: get('ISO'),
+        FocalLength: get('FocalLength'),
+        FocalLengthIn35mmFilm: get('FocalLengthIn35mmFilm') ?? get('FocalLengthIn35mmFormat'),
+        DateTimeOriginal: get('DateTimeOriginal'),
+        DateTimeDigitized: get('DateTimeDigitized'),
+        DateTime: get('DateTime'),
+      };
+      // remove nulls
+      parsed = Object.fromEntries(Object.entries(parsed).filter(([, v]) => v !== null && v !== undefined && v !== ''));
+    } catch {
+      // keep empty
+    }
+  }
+
+  return parsed || {};
 }
 
 async function decodeImageFile(file) {
