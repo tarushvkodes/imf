@@ -70,7 +70,13 @@ async function processAll() {
     try {
       const exif = await readExif(file);
       const decoded = await decodeImageFile(file);
-      const framed = await frameImage(decoded, exif, siteText, barRatio);
+
+      if (decoded.width < 320 || decoded.height < 320) {
+        throw new Error('Image is too small (likely a thumbnail/preview). Use the original file export.');
+      }
+
+      const cleaned = stripExistingFooter(decoded);
+      const framed = await frameImage(cleaned, exif, siteText, barRatio);
       const blob = await canvasToBlob(framed, 'image/jpeg', 0.95);
 
       const meta = summarizeExif(exif);
@@ -226,6 +232,15 @@ function summarizeExif(exif) {
   const focalRaw = numFrom(firstDefined(exif, ['FocalLength', 'focalLength']));
   const focal35 = numFrom(firstDefined(exif, ['FocalLengthIn35mmFormat', 'FocalLengthIn35mmFilm']));
 
+  let focal = '?mm';
+  if (focalRaw > 0 && focal35 > 0 && Math.round(focalRaw) !== Math.round(focal35)) {
+    focal = `${Math.round(focalRaw)}mm (${Math.round(focal35)}mm eq)`;
+  } else if (focalRaw > 0) {
+    focal = `${Math.round(focalRaw)}mm`;
+  } else if (focal35 > 0) {
+    focal = `${Math.round(focal35)}mm`;
+  }
+
   const dt = normalizeDate(firstDefined(exif, ['DateTimeOriginal', 'CreateDate', 'DateTimeDigitized', 'DateTime', 'ModifyDate']));
 
   return {
@@ -234,7 +249,7 @@ function summarizeExif(exif) {
     aperture: aperture > 0 ? `f/${aperture.toFixed(1)}` : 'f/?',
     shutter: shutterSeconds > 0 ? formatShutter(shutterSeconds) : '?s',
     iso,
-    focal: focalRaw > 0 ? `${Math.round(focalRaw)}mm` : (focal35 > 0 ? `${Math.round(focal35)}mm` : '?mm'),
+    focal,
     dt,
   };
 }
@@ -336,6 +351,46 @@ function downloadBlob(blob, filename) {
 
 function canvasToBlob(canvas, type, quality) {
   return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+}
+
+function stripExistingFooter(bitmap) {
+  const w = bitmap.width;
+  const h = bitmap.height;
+  const probe = document.createElement('canvas');
+  probe.width = w;
+  probe.height = h;
+  const ctx = probe.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(bitmap, 0, 0);
+
+  const minFooter = Math.max(72, Math.floor(h * 0.06));
+  const maxFooter = Math.max(minFooter, Math.floor(h * 0.2));
+
+  for (let fh = maxFooter; fh >= minFooter; fh--) {
+    const y = h - fh;
+    const sample = ctx.getImageData(0, y, w, fh).data;
+    let sumR = 0, sumG = 0, sumB = 0, px = 0;
+    for (let i = 0; i < sample.length; i += 40) { // stride for speed
+      sumR += sample[i];
+      sumG += sample[i + 1];
+      sumB += sample[i + 2];
+      px += 1;
+    }
+    const r = sumR / px;
+    const g = sumG / px;
+    const b = sumB / px;
+    const spread = Math.max(r, g, b) - Math.min(r, g, b);
+
+    if (Math.min(r, g, b) >= 225 && spread <= 14) {
+      const cropped = document.createElement('canvas');
+      cropped.width = w;
+      cropped.height = y;
+      const c2 = cropped.getContext('2d');
+      c2.drawImage(probe, 0, 0, w, y, 0, 0, w, y);
+      return cropped;
+    }
+  }
+
+  return probe;
 }
 
 async function loadLogo(path) {
