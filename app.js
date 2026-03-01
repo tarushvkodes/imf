@@ -264,6 +264,22 @@ function formatShutter(n) {
   return `1/${Math.round(1 / n)}s`;
 }
 
+function ellipsize(ctx, text, maxWidth) {
+  const s = String(text ?? '');
+  if (!s || maxWidth <= 0) return '';
+  if (ctx.measureText(s).width <= maxWidth) return s;
+  const dots = '…';
+  let lo = 0;
+  let hi = s.length;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi + 1) / 2);
+    const cand = s.slice(0, mid) + dots;
+    if (ctx.measureText(cand).width <= maxWidth) lo = mid;
+    else hi = mid - 1;
+  }
+  return s.slice(0, lo) + dots;
+}
+
 async function frameImage(bitmap, exif, siteText, barRatio) {
   const meta = summarizeExif(exif);
   const w = bitmap.width, h = bitmap.height;
@@ -293,28 +309,51 @@ async function frameImage(bitmap, exif, siteText, barRatio) {
   const logoW = Math.max(1, Math.floor((logo.width / logo.height) * logoH));
   ctx.drawImage(logo, padX, logoY, logoW, logoH);
 
-  const x = padX + logoW + Math.floor(w * 0.018);
-  ctx.fillStyle = '#000';
+  const leftX = padX + logoW + Math.floor(w * 0.018);
+  const centerX = Math.floor(w * 0.5);
+  const centerGap = Math.max(14, Math.floor(w * 0.02));
+  const focalBoxW = Math.max(120, Math.min(280, Math.floor(w * 0.22)));
+
+  const leftMaxX = centerX - Math.floor(focalBoxW / 2) - centerGap;
+  const rightMinX = centerX + Math.floor(focalBoxW / 2) + centerGap;
+  const leftWidth = Math.max(40, leftMaxX - leftX);
+  const rightWidth = Math.max(40, (w - padX) - rightMinX);
+
+  const modelFont = Math.max(14, Math.floor(barH * 0.245));
+  const metaFont = Math.max(13, Math.floor(barH * 0.215));
+  const focalFont = Math.max(16, Math.floor(barH * 0.33));
+  const rightFont = Math.max(14, Math.floor(barH * 0.22));
+
   ctx.textBaseline = 'middle';
 
-  ctx.font = `${Math.max(14, Math.floor(barH * 0.245))}px Sora`;
-  ctx.fillText(meta.camera, x, y0 + Math.floor(barH * 0.36));
+  // Left block (camera + exposure)
+  ctx.fillStyle = '#000';
+  ctx.textAlign = 'left';
+  ctx.font = `${modelFont}px Sora`;
+  const leftTop = ellipsize(ctx, meta.camera, leftWidth);
+  ctx.fillText(leftTop, leftX, y0 + Math.floor(barH * 0.36));
 
   ctx.fillStyle = '#222';
-  ctx.font = `${Math.max(13, Math.floor(barH * 0.215))}px Sora`;
-  ctx.fillText(`${meta.aperture}  ${meta.shutter}  ISO${meta.iso}`, x, y0 + Math.floor(barH * 0.67));
+  ctx.font = `${metaFont}px Sora`;
+  const leftBottom = ellipsize(ctx, `${meta.aperture}  ${meta.shutter}  ISO${meta.iso}`, leftWidth);
+  ctx.fillText(leftBottom, leftX, y0 + Math.floor(barH * 0.67));
 
+  // Center focal block
   ctx.fillStyle = '#000';
   ctx.textAlign = 'center';
-  ctx.font = `700 ${Math.max(16, Math.floor(barH * 0.33))}px Sora`;
-  ctx.fillText(meta.focal, Math.floor(w * 0.50), y0 + Math.floor(barH / 2));
+  ctx.font = `700 ${focalFont}px Sora`;
+  const focalTxt = ellipsize(ctx, meta.focal, focalBoxW);
+  ctx.fillText(focalTxt, centerX, y0 + Math.floor(barH / 2));
 
+  // Right block (site + datetime)
   ctx.textAlign = 'right';
-  ctx.font = `${Math.max(14, Math.floor(barH * 0.22))}px Sora`;
-  ctx.fillText(siteText, w - padX, y0 + Math.floor(barH * 0.40));
+  ctx.font = `${rightFont}px Sora`;
+  const siteShort = ellipsize(ctx, siteText, rightWidth);
+  ctx.fillText(siteShort, w - padX, y0 + Math.floor(barH * 0.40));
   if (meta.dt) {
     ctx.fillStyle = '#333';
-    ctx.fillText(String(meta.dt), w - padX, y0 + Math.floor(barH * 0.72));
+    const dtShort = ellipsize(ctx, String(meta.dt), rightWidth);
+    ctx.fillText(dtShort, w - padX, y0 + Math.floor(barH * 0.72));
   }
 
   return c;
