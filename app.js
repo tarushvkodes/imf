@@ -301,6 +301,16 @@ function ellipsize(ctx, text, maxWidth) {
   return s.slice(0, lo) + dots;
 }
 
+function fitFontPx(ctx, text, family, weight, maxPx, minPx, maxWidth) {
+  let px = maxPx;
+  while (px > minPx) {
+    ctx.font = `${weight ? weight + ' ' : ''}${px}px ${family}`;
+    if (ctx.measureText(String(text ?? '')).width <= maxWidth) return px;
+    px -= 1;
+  }
+  return minPx;
+}
+
 async function frameImage(bitmap, exif, siteText, barRatio, fallbackDevice = 'unknown', sourceName = '') {
   const meta = summarizeExif(exif, fallbackDevice, sourceName);
   const w = bitmap.width, h = bitmap.height;
@@ -333,7 +343,7 @@ async function frameImage(bitmap, exif, siteText, barRatio, fallbackDevice = 'un
   const leftX = padX + logoW + Math.floor(w * 0.018);
   const centerX = Math.floor(w * 0.5);
   const centerGap = Math.max(14, Math.floor(w * 0.02));
-  const focalBoxW = Math.max(120, Math.min(280, Math.floor(w * 0.22)));
+  const focalBoxW = Math.max(140, Math.min(360, Math.floor(w * 0.30)));
 
   const leftMaxX = centerX - Math.floor(focalBoxW / 2) - centerGap;
   const rightMinX = centerX + Math.floor(focalBoxW / 2) + centerGap;
@@ -359,12 +369,12 @@ async function frameImage(bitmap, exif, siteText, barRatio, fallbackDevice = 'un
   const leftBottom = ellipsize(ctx, `${meta.aperture}  ${meta.shutter}  ISO${meta.iso}`, leftWidth);
   ctx.fillText(leftBottom, leftX, y0 + Math.floor(barH * 0.67));
 
-  // Center focal block
+  // Center focal block (never ellipsize focal; shrink font instead)
   ctx.fillStyle = '#000';
   ctx.textAlign = 'center';
-  ctx.font = `700 ${focalFont}px Sora`;
-  const focalTxt = ellipsize(ctx, meta.focal, focalBoxW);
-  ctx.fillText(focalTxt, centerX, y0 + Math.floor(barH / 2));
+  const focalPx = fitFontPx(ctx, meta.focal, 'Sora', '700', focalFont, Math.max(12, focalFont - 8), focalBoxW);
+  ctx.font = `700 ${focalPx}px Sora`;
+  ctx.fillText(String(meta.focal), centerX, y0 + Math.floor(barH / 2));
 
   // Right block (site + datetime)
   ctx.textAlign = 'right';
