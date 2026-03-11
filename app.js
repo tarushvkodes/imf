@@ -15,6 +15,7 @@ const BRAND_LOGO_PATHS = {
   gopro: './assets/gopro.svg',
   panasonic: './assets/panasonic.svg',
   leica: './assets/leica.svg',
+  rayban: './assets/rayban.svg',
   unknown: './assets/camera.svg',
 };
 
@@ -262,6 +263,8 @@ function brandFromExif(exif) {
     ['gopro', 'gopro'],
     ['panasonic', 'panasonic'],
     ['leica', 'leica'],
+    ['ray-ban', 'rayban'],
+    ['rayban', 'rayban'],
     ['apple', 'apple'],
     ['iphone', 'apple'],
     ['ipad', 'apple'],
@@ -272,6 +275,48 @@ function brandFromExif(exif) {
     if (s.includes(needle)) return brand;
   }
   return 'unknown';
+}
+
+function friendlyCameraName(rawMake, rawModel) {
+  let make = String(rawMake || '').trim();
+  let model = String(rawModel || '').trim();
+
+  // Normalize common make names to clean display versions
+  const makeLower = make.toLowerCase();
+  if (makeLower.includes('nikon')) make = 'Nikon';
+  else if (makeLower.includes('canon')) make = 'Canon';
+  else if (makeLower.includes('sony')) make = 'Sony';
+  else if (makeLower.includes('apple')) make = 'Apple';
+  else if (makeLower.includes('fuji')) make = 'Fujifilm';
+  else if (makeLower.includes('samsung')) make = 'Samsung';
+  else if (makeLower.includes('google')) make = 'Google';
+  else if (makeLower.includes('dji')) make = 'DJI';
+  else if (makeLower.includes('gopro')) make = 'GoPro';
+  else if (makeLower.includes('panasonic')) make = 'Panasonic';
+  else if (makeLower.includes('leica')) make = 'Leica';
+  else if (makeLower.includes('ray-ban') || makeLower.includes('rayban')) make = 'Ray-Ban';
+
+  // Sony ILCE → Alpha series (e.g., ILCE-6000 → α6000, ILCE-7RM4 → α7RM4)
+  model = model.replace(/^ILCE-/i, 'α');
+
+  // Remove make prefix from model to avoid duplication
+  // e.g., Model="Canon EOS RP" with Make="Canon" → "EOS RP"
+  // e.g., Model="NIKON D3300" with Make="Nikon" → "D3300"
+  // e.g., Model="Ray-Ban Meta" with Make="Ray-Ban" → "Meta"
+  const modelLower = model.toLowerCase();
+  const brandWords = make.toLowerCase().split(/\s+/);
+  for (const word of brandWords) {
+    if (word && modelLower.startsWith(word)) {
+      model = model.slice(word.length).trim();
+      break;
+    }
+  }
+
+  if (!make && !model) return 'Unknown Camera';
+  if (!model) return make;
+  if (!make) return model;
+
+  return `${make} ${model}`;
 }
 
 function normalizeDate(dt) {
@@ -292,7 +337,7 @@ function summarizeExif(exif, fallbackDevice = 'unknown', sourceName = '') {
   let brand = brandFromExif(exif);
   let camera;
   if (make || model) {
-    camera = `${make} ${model}`.trim();
+    camera = friendlyCameraName(make, model);
   } else {
     if (fallbackDevice === 'apple_ipad') {
       brand = 'apple';
@@ -395,7 +440,19 @@ function fitFontPx(ctx, text, family, weight, maxPx, minPx, maxWidth) {
 function compactCameraName(name) {
   const s = String(name || '').trim();
   if (!s) return s;
-  const strongModel = s.match(/\b([A-Z]?\d{3,5}[A-Z]?|D\d{3,4}|Z\d{1,2}|A\d{4}|R\d{1,2})\b/i);
+  // Sony alpha models: α6000, α7M3, α7RM4, etc.
+  const alphaMatch = s.match(/α\d+\w*/);
+  if (alphaMatch) return alphaMatch[0];
+  // Canon EOS models: EOS RP, EOS R5, EOS 5D, etc.
+  const eosMatch = s.match(/EOS\s+\S+/i);
+  if (eosMatch) return eosMatch[0];
+  // Sony ZV models: ZV-E10, ZV-1, ZV-1F, etc.
+  const zvMatch = s.match(/ZV-[A-Z]?\d+\w*/i);
+  if (zvMatch) return zvMatch[0];
+  // Nikon Z models: Z 6, Z 7, Z6, Z7, Z5, Z50, etc. (handles optional space)
+  const zMatch = s.match(/\bZ\s*\d{1,2}\b/i);
+  if (zMatch) return zMatch[0].replace(/\s+/g, '').toUpperCase();
+  const strongModel = s.match(/\b([A-Z]?\d{3,5}[A-Z]?|D\d{3,4}|A\d{4}|R\d{1,2})\b/i);
   if (strongModel) return strongModel[1].toUpperCase();
   const parts = s.split(/\s+/);
   return parts[parts.length - 1] || s;
