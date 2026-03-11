@@ -446,10 +446,10 @@ function compactCameraName(name) {
   // Canon EOS models: EOS RP, EOS R5, EOS 5D, etc.
   const eosMatch = s.match(/EOS\s+\S+/i);
   if (eosMatch) return eosMatch[0];
-  // Sony ZV models: ZV-E10, ZV-1, etc.
-  const zvMatch = s.match(/ZV-?\w+/i);
+  // Sony ZV models: ZV-E10, ZV-1, ZV-1F, etc.
+  const zvMatch = s.match(/ZV-[A-Z]?\d+\w*/i);
   if (zvMatch) return zvMatch[0];
-  // Nikon Z models: Z 6, Z 7, Z6, Z7, Z5, etc.
+  // Nikon Z models: Z 6, Z 7, Z6, Z7, Z5, Z50, etc. (handles optional space)
   const zMatch = s.match(/\bZ\s*\d{1,2}\b/i);
   if (zMatch) return zMatch[0].replace(/\s+/g, '').toUpperCase();
   const strongModel = s.match(/\b([A-Z]?\d{3,5}[A-Z]?|D\d{3,4}|A\d{4}|R\d{1,2})\b/i);
