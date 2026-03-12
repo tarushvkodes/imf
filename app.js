@@ -18,6 +18,7 @@ const BRAND_LOGO_PATHS = {
   rayban: './assets/rayban.svg',
   olympus: './assets/olympus.svg',
   pentax: './assets/pentax.svg',
+  ricoh: './assets/ricoh.svg',
   hasselblad: './assets/hasselblad.svg',
   unknown: './assets/camera.svg',
 };
@@ -272,7 +273,7 @@ function brandFromExif(exif) {
     ['om system', 'olympus'],
     ['om digital', 'olympus'],
     ['pentax', 'pentax'],
-    ['ricoh', 'pentax'],
+    ['ricoh', 'ricoh'],
     ['hasselblad', 'hasselblad'],
     ['apple', 'apple'],
     ['iphone', 'apple'],
