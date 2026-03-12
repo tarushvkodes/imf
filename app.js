@@ -55,7 +55,7 @@ downloadAllBtn.onclick = async () => {
 };
 
 function setFiles(newFiles) {
-  files = newFiles.filter(f => /image|heic|heif|raw/i.test(f.type) || /\.(heic|heif|jpe?g|png|webp|nef|cr2|cr3|arw|dng|raf|orf|rw2|pef|srw|gpr|3fr)$/i.test(f.name));
+  files = newFiles.filter(f => /image|heic|heif|raw/i.test(f.type) || /\.(heic|heif|jpe?g|png|webp|nef|nrw|cr2|cr3|crw|arw|dng|raf|orf|rw2|pef|srw|gpr|3fr|fff|rwl)$/i.test(f.name));
   outputs = [];
   resultsEl.innerHTML = '';
   status(`${files.length} file(s) selected.`);
@@ -166,7 +166,7 @@ async function readExif(file) {
 async function decodeImageFile(file) {
   const ext = file.name.toLowerCase();
   const isHeic = ext.endsWith('.heic') || ext.endsWith('.heif') || /heic|heif/i.test(file.type);
-  const isRaw = /\.(nef|cr2|cr3|arw|dng|raf|orf|rw2|pef|srw|gpr|3fr)$/i.test(ext);
+  const isRaw = /\.(nef|nrw|cr2|cr3|crw|arw|dng|raf|orf|rw2|pef|srw|gpr|3fr|fff|rwl)$/i.test(ext);
 
   let srcBlob = file;
   if (isHeic) {

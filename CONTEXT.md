@@ -37,7 +37,7 @@ This file captures practical findings from real-world testing so future updates 
 ## Current Behavior Expectations
 - JPEG/PNG/WEBP: parse EXIF if present.
 - HEIC/HEIF: parse via full EXIF parser + browser decode path.
-- RAW formats (NEF/CR2/CR3/ARW/DNG/RAF/ORF/RW2/PEF/SRW/GPR/3FR): best-effort via embedded thumbnail in browser; may fail depending on file.
+- RAW formats (NEF/NRW/CR2/CR3/CRW/ARW/DNG/RAF/ORF/RW2/PEF/SRW/GPR/3FR/FFF/RWL): best-effort via embedded thumbnail in browser; may fail depending on file.
 - ISO extraction reads multiple tag variants (`ISOSpeedRatings`, `PhotographicSensitivity`, etc.).
 
 ## Verification Tip
