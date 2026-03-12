@@ -6,7 +6,8 @@ Client-side web app that adds a camera-metadata footer to photos.
 - Local processing only (no backend upload)
 - EXIF parsing in-browser
 - HEIC/HEIF decode in-browser
-- Vendor logo mapping (Apple / Nikon / Unknown)
+- RAW format support (NEF, CR2, CR3, ARW, DNG, RAF, ORF, RW2, PEF, SRW, GPR, 3FR)
+- Vendor logo mapping (Apple / Nikon / Canon / Sony / Fujifilm / Olympus / Pentax / Hasselblad / and more)
 - Batch processing + download-all
 
 ## Run locally
