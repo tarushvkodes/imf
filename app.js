@@ -16,6 +16,10 @@ const BRAND_LOGO_PATHS = {
   panasonic: './assets/panasonic.svg',
   leica: './assets/leica.svg',
   rayban: './assets/rayban.svg',
+  olympus: './assets/olympus.svg',
+  pentax: './assets/pentax.svg',
+  ricoh: './assets/ricoh.svg',
+  hasselblad: './assets/hasselblad.svg',
   unknown: './assets/camera.svg',
 };
 
@@ -51,7 +55,7 @@ downloadAllBtn.onclick = async () => {
 };
 
 function setFiles(newFiles) {
-  files = newFiles.filter(f => /image|heic|heif|raw/i.test(f.type) || /\.(heic|heif|jpe?g|png|webp|nef|cr2|cr3|arw|dng)$/i.test(f.name));
+  files = newFiles.filter(f => /image|heic|heif|raw/i.test(f.type) || /\.(heic|heif|jpe?g|png|webp|nef|nrw|cr2|cr3|crw|arw|dng|raf|orf|rw2|pef|srw|gpr|3fr|fff|rwl)$/i.test(f.name));
   outputs = [];
   resultsEl.innerHTML = '';
   status(`${files.length} file(s) selected.`);
@@ -162,7 +166,7 @@ async function readExif(file) {
 async function decodeImageFile(file) {
   const ext = file.name.toLowerCase();
   const isHeic = ext.endsWith('.heic') || ext.endsWith('.heif') || /heic|heif/i.test(file.type);
-  const isRaw = /\.(nef|cr2|cr3|arw|dng)$/i.test(ext);
+  const isRaw = /\.(nef|nrw|cr2|cr3|crw|arw|dng|raf|orf|rw2|pef|srw|gpr|3fr|fff|rwl)$/i.test(ext);
 
   let srcBlob = file;
   if (isHeic) {
@@ -265,6 +269,12 @@ function brandFromExif(exif) {
     ['leica', 'leica'],
     ['ray-ban', 'rayban'],
     ['rayban', 'rayban'],
+    ['olympus', 'olympus'],
+    ['om system', 'olympus'],
+    ['om digital', 'olympus'],
+    ['pentax', 'pentax'],
+    ['ricoh', 'ricoh'],
+    ['hasselblad', 'hasselblad'],
     ['apple', 'apple'],
     ['iphone', 'apple'],
     ['ipad', 'apple'],
@@ -295,6 +305,10 @@ function friendlyCameraName(rawMake, rawModel) {
   else if (makeLower.includes('panasonic')) make = 'Panasonic';
   else if (makeLower.includes('leica')) make = 'Leica';
   else if (makeLower.includes('ray-ban') || makeLower.includes('rayban')) make = 'Ray-Ban';
+  else if (makeLower.includes('olympus') || makeLower.includes('om system') || makeLower.includes('om digital')) make = 'OM System';
+  else if (makeLower.includes('pentax')) make = 'Pentax';
+  else if (makeLower.includes('ricoh')) make = 'Ricoh';
+  else if (makeLower.includes('hasselblad')) make = 'Hasselblad';
 
   // Sony ILCE → Alpha series (e.g., ILCE-6000 → α6000, ILCE-7RM4 → α7RM4)
   model = model.replace(/^ILCE-/i, 'α');
